@@ -37,7 +37,7 @@ class TransferableResource extends Resource
                     ->afterStateUpdated(function (?string $state, Forms\Get $get, Forms\Set $set) {
                         $set(
                             'hash',
-                            Process::run('b2sum "'.$state.'" | awk \'{ print $1 }\'')->output()
+                            Process::run(Transferable::getHashCommand(path: $state))->output()
                         );
 
                         $set('size', filesize($state));

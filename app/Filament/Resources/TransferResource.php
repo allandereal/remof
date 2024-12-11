@@ -43,8 +43,7 @@ class TransferResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('transferable.id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('transferable.path')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('started_at')
                     ->dateTime()
