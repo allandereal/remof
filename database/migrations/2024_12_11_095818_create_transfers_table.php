@@ -20,6 +20,8 @@ return new class extends Migration
             $table->dateTime('completed_at')->nullable();
             $table->enum('status', ['pending', 'started', 'failed', 'completed'])
                 ->default('pending');
+            $table->foreignId('server_id')->constrained('servers');
+            $table->string('path', 500)->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
         });

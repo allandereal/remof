@@ -17,9 +17,11 @@ return new class extends Migration
             $table->text('hash')->nullable();
             $table->unsignedBigInteger('size')->nullable();
             $table->string('path', 500);
-            $table->foreignId('transferable_id')
+            $table->foreignId('transferable_id')->nullable()
                 ->constrained('transferables')
                 ->cascadeOnDelete();
+            $table->foreignId('server_id')
+                ->constrained('servers');
             $table->json('metadata')->nullable();
             $table->timestamps();
         });
