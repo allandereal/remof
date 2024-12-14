@@ -18,4 +18,9 @@ class Server extends Model
     {
         return $this->hasMany(Transferable::class);
     }
+
+    public function isWindows(): bool
+    {
+        return $this->os === 'Windows';
+    }
 }

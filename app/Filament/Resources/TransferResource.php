@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TransferResource extends Resource
@@ -25,6 +26,7 @@ class TransferResource extends Resource
             ->schema([
                 Forms\Components\Select::make('transferable_id')
                     ->relationship('transferable', 'path')
+                    ->searchable()
                     ->required(),
                 Forms\Components\DateTimePicker::make('started_at'),
                 Forms\Components\DateTimePicker::make('completed_at'),
@@ -44,7 +46,7 @@ class TransferResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('transferable.path')
-                    ->sortable(),
+                    ->sortable()->limit(80),
                 Tables\Columns\TextColumn::make('started_at')
                     ->dateTime()
                     ->sortable(),
@@ -60,13 +62,21 @@ class TransferResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('path')
+                    ->sortable()->limit(80),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'started' => 'Started',
+                        'completed' => 'Completed',
+                        'failed' => 'Failed',
+                    ])
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -85,12 +95,17 @@ class TransferResource extends Resource
         ];
     }
 
+    public static function canEdit(Model $record): bool
+    {
+        return true;
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListTransfers::route('/'),
             'create' => Pages\CreateTransfer::route('/create'),
-            'edit' => Pages\EditTransfer::route('/{record}/edit'),
+//            'edit' => Pages\EditTransfer::route('/{record}/edit'),
         ];
     }
 }

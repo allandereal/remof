@@ -25,14 +25,19 @@ class Transferable extends Model
         return $this->type === 'Directory' || is_dir($this->path);
     }
 
+    public function getLastPathPart(): string
+    {
+        return preg_replace("/^.*\/(.*)$/", "$1", $this->path);
+    }
+
     public function getDirPath(): string
     {
         $paths = [];
         $transferable = $this;
         FindFolders:
 
-        $folders =  array_filter(explode('/', $transferable->path));
-        array_unshift($paths, end($folders));
+        $parts =  array_filter(explode('/', $transferable->path));
+        array_unshift($paths, end($parts));
 
         if (filled($transferable->transferable_id)){
             $transferable = self::find($transferable->transferable_id);

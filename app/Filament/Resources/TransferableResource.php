@@ -35,10 +35,10 @@ class TransferableResource extends Resource
                     ->required()
                     ->live(true)
                     ->afterStateUpdated(function (?string $state, Forms\Get $get, Forms\Set $set) {
-                        $set(
-                            'hash',
-                            Process::run(Transferable::getHashCommand(path: $state))->output()
-                        );
+//                        $set(
+//                            'hash',
+//                            Process::run(Transferable::getHashCommand(path: $state))->output()
+//                        );
 
                         $set('size', filesize($state));
                     }),

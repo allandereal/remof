@@ -3,13 +3,12 @@
 namespace App\Jobs;
 
 use App\Models\Transfer;
-use App\Models\Transferable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 
-class CopyFile implements ShouldQueue
+class CreateDirectory implements ShouldQueue
 {
     use Queueable;
 
@@ -33,7 +32,7 @@ class CopyFile implements ShouldQueue
      *
      * @var int
      */
-    public int $timeout = 18000; //5hrs
+    public int $timeout = 10;
 
     /**
      * Execute the job.
@@ -47,15 +46,11 @@ class CopyFile implements ShouldQueue
 
         $this->transfer->load('transferable');
 
-//        $this->transfer->transferable->update([
-//            'hash' => Process::run(Transferable::getHashCommand(path: $this->transfer->transferable->path))->output()
-//        ]);
-
         $result = Process::forever()
             ->run(
-                $this->transfer->buildScpCommand(),
+                $this->transfer->buildMkdirCommand(),
                 function (string $type, string $output) {
-                    Log::info('SCPLog: ', [$type, $output]);
+                    Log::info('SSHLog: ', [$type, $output]);
 //                  if ($type === Process::OUT) {
 //                      // Handle standard output
 //                      $this->output->write($buffer);

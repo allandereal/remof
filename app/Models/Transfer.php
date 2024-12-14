@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\CopyFile;
+use App\Jobs\SplitDirectory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Log;
@@ -22,46 +23,62 @@ class Transfer extends Model
         return $this->belongsTo(Transferable::class);
     }
 
-    public function getFullPath(): string
+    public function getChildPath(Transferable $transferable): string
     {
-        if ($this->transferable->isDirectory()){
-            return $this->path.(str_ends_with($this->path, '/') ? '' : '/').$this->transferable->getDirPath();
-        }
+        return $this->path . (str_ends_with($this->path, '/') ? '' : '/') . $transferable->getLastPathPart();
+    }
 
-        return $this->path;
+    public static function getFolderContents(string $path): array
+    {
+        $path = escapeshellarg($path);
+        $contents = explode( "\n", Process::run(
+            "find " . $path
+            .' -maxdepth 1 ! -path ' . $path
+        )->output()) ?? [];
+
+        return array_filter($contents, fn($item) => $item !== '');
     }
 
     protected static function booted(): void
     {
         static::created(function (Transfer $transfer) {
             $transfer->load('transferable');
-            if ($transfer->transferable->isDirectory() && blank($transfer->transferable->transferable_id)){
-                foreach (glob($transfer->transferable->path.'/*') ?: [] as $path){
-                    $transferable = $transfer->server->transferables()->create([
-                        'transferable_id' => $transfer->transferable_id,
-                        'path' => $path,
-                        'type' => is_dir($path) ? 'Directory' : 'File',
-                        'hash' => Process::run(Transferable::getHashCommand(path: $path))->output(),
-                    ]);
 
-                    $transferable->transfers()->create([
-                        'path' => $transfer->getFullPath(),
-                        'server_id' => $transfer->server_id,
-                    ]);
-                }
+            if ($transfer->transferable->isDirectory()){
+                SplitDirectory::dispatch($transfer)->onQueue('splitter');
             } else {
-                CopyFile::dispatch($transfer);
+                CopyFile::dispatch($transfer)->onQueue('file');
             }
         });
     }
 
     public function buildScpCommand(): string
     {
+        $isDirectory = $this->transferable->isDirectory();
+
         $parts = [
             'scp',
-            ...($this->transferable->isDirectory() ? ['-r'] : []),
-            $this->transferable->path,
-            ...($this->path ? [$this->server->hostname.':'.$this->path] : [$this->server->hostname])
+            //...($isDirectory ? ['-r'] : []), //This isn't working on URE external dist
+            escapeshellarg($this->transferable->path),
+            escapeshellarg($this->path ? $this->server->hostname.':'.$this->path : $this->server->hostname)
+        ];
+
+        return implode(' ', $parts);
+    }
+
+    public function buildMkdirCommand(): string
+    {
+        $creationCommand = "\"mkdir -p {$this->path}\"";
+
+        if ($this->server->isWindows()){
+            $dirPath = '\\"'.str_replace('/', "\\\\", ltrim($this->path, '/')).'\\"';
+            $creationCommand = '"if not exist '.$dirPath.' mkdir '.$dirPath.'"';
+        }
+
+        $parts = [
+            'ssh',
+            $this->server->hostname,
+            $creationCommand,
         ];
 
         return implode(' ', $parts);
