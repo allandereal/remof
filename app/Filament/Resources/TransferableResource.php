@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\TransferableType;
 use App\Filament\Resources\TransferableResource\Pages;
 use App\Filament\Resources\TransferableResource\RelationManagers;
 use App\Models\Transferable;
@@ -25,12 +26,9 @@ class TransferableResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('type')
+                Forms\Components\Select::make('type')
+                    ->options(array_combine(TransferableType::values(), TransferableType::titles()))
                     ->required(),
-                Forms\Components\Textarea::make('hash')->readOnly()
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('size')
-                    ->numeric(),
                 Forms\Components\TextInput::make('path')
                     ->required()
                     ->live(true)
@@ -42,12 +40,18 @@ class TransferableResource extends Resource
 
                         $set('size', filesize($state));
                     }),
-                Forms\Components\TextInput::make('transferable_id')
-                    ->nullable()
-                    ->numeric(),
+//                Forms\Components\TextInput::make('transferable_id')
+//                    ->nullable()
+//                    ->numeric(),
                 Forms\Components\Select::make('server_id')
                     ->relationship('server', 'name')
                     ->required(),
+                Forms\Components\TextInput::make('size')
+                    ->readOnly()
+                    ->numeric(),
+                Forms\Components\Textarea::make('hash')
+                    ->readOnly()
+                    ->columnSpanFull(),
                 Forms\Components\Textarea::make('metadata')
                     ->columnSpanFull(),
             ]);

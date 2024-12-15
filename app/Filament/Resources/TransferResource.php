@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\TransferStatus;
 use App\Filament\Resources\TransferResource\Pages;
 use App\Filament\Resources\TransferResource\RelationManagers;
 use App\Models\Transfer;
@@ -28,9 +29,11 @@ class TransferResource extends Resource
                     ->relationship('transferable', 'path')
                     ->searchable()
                     ->required(),
-                Forms\Components\DateTimePicker::make('started_at'),
-                Forms\Components\DateTimePicker::make('completed_at'),
-                Forms\Components\TextInput::make('status')
+                //Forms\Components\DateTimePicker::make('started_at'),
+                //Forms\Components\DateTimePicker::make('completed_at'),
+                Forms\Components\Select::make('status')
+                    ->options(array_combine(TransferStatus::values(), TransferStatus::titles()))
+                    ->default(TransferStatus::PENDING->value)
                     ->required(),
                 Forms\Components\Select::make('server_id')
                     ->relationship('server', 'name')
@@ -47,14 +50,10 @@ class TransferResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('transferable.path')
                     ->sortable()->limit(80),
-                Tables\Columns\TextColumn::make('started_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('completed_at')
-                    ->dateTime()
+                Tables\Columns\TextColumn::make('transferable.type')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->searchable(),
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('server.name')
                     ->numeric()
                     ->sortable(),
@@ -63,7 +62,15 @@ class TransferResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('path')
-                    ->sortable()->limit(80),
+                    ->sortable()
+                    ->searchable()
+                    ->limit(80),
+                Tables\Columns\TextColumn::make('started_at')
+                    ->dateTime()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('completed_at')
+                    ->dateTime()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\CopyFile;
+use App\Jobs\CreateDirectory;
 use App\Jobs\SplitDirectory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +51,15 @@ class Transfer extends Model
                 CopyFile::dispatch($transfer)->onQueue('file');
             }
         });
+    }
+
+    public function retry(): void
+    {
+        if ($this->transferable->isDirectory()){
+            CreateDirectory::dispatch($this)->onQueue('directory');
+        } else {
+            CopyFile::dispatch($this)->onQueue('file');
+        }
     }
 
     public function buildScpCommand(): string

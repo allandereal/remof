@@ -51,7 +51,7 @@ class SplitDirectory implements ShouldQueue
             ]);
 
             $transferable->transfers()->create([
-                'path' => $this->transfer->getChildPath($this->transfer->transferable),
+                'path' => $transferable->isDirectory() ? $this->transfer->getChildPath($transferable) : $this->transfer->path,
                 'server_id' => $this->transfer->server_id,
             ]);
         }
