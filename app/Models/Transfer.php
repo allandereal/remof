@@ -88,7 +88,7 @@ class Transfer extends Model
         $parts = [
             'scp',
             escapeshellarg($this->from_path),
-            escapeshellarg($this->to_path ? $this->toServer->hostname.':'.$this->to_path : $this->server->hostname)
+            escapeshellarg($this->to_path ? $this->toServer->hostname.':'.$this->to_path : $this->toServer->hostname)
         ];
 
         return implode(' ', $parts);
@@ -105,7 +105,7 @@ class Transfer extends Model
 
         $parts = [
             'ssh',
-            $this->fromServer->hostname,
+            $this->toServer->hostname,
             $creationCommand,
         ];
 
