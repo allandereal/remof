@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\TransferableType;
 use App\Models\Transfer;
 use App\Models\Transferable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,35 +25,32 @@ class SplitDirectory implements ShouldQueue
      *
      * @var int
      */
-    public int $tries = 5;
+    public int $tries = 3;
 
     /**
      * The number of seconds the job can run before timing out.
      *
      * @var int
      */
-    public int $timeout = 18000; //5hrs
+    public int $timeout = 10;
 
     /**
      * Execute the job.
      */
     public function handle(): void
     {
-        $this->transfer->load('transferable');
-
         CreateDirectory::dispatch($this->transfer)->onQueue('directory');
 
-        foreach (Transfer::getFolderContents($this->transfer->transferable->path) as $path){
-            $transferable = Transferable::create([
-                'server_id' => $this->transfer->transferable->server_id,
-                'transferable_id' => $this->transfer->transferable_id,
-                'path' => $path,
-                'type' => is_dir($path) ? 'Directory' : 'File',
-            ]);
+        foreach (Transfer::getFolderContents($this->transfer->from_path) as $path){
+            $isDirectory = is_dir($path);
 
-            $transferable->transfers()->create([
-                'path' => $transferable->isDirectory() ? $this->transfer->getChildPath($transferable) : $this->transfer->path,
-                'server_id' => $this->transfer->server_id,
+            Transfer::create([
+                'from_server_id' => $this->transfer->from_server_id,
+                'to_server_id' => $this->transfer->to_server_id,
+                'transfer_id' => $this->transfer->id,
+                'from_path' => $path,
+                'to_path' => $isDirectory ? $this->transfer->getChildPath($path) : $this->transfer->to_path,
+                'type' => $isDirectory ? TransferableType::DIRECTORY->value : TransferableType::FILE->value,
             ]);
         }
     }

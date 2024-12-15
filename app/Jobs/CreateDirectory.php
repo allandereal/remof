@@ -44,10 +44,7 @@ class CreateDirectory implements ShouldQueue
             'status' => 'started',
         ]);
 
-        $this->transfer->load('transferable');
-
-        $result = Process::forever()
-            ->run(
+        $result = Process::forever()->run(
                 $this->transfer->buildMkdirCommand(),
                 function (string $type, string $output) {
                     Log::info('SSHLog: ', [$type, $output]);
@@ -66,14 +63,6 @@ class CreateDirectory implements ShouldQueue
                 }
             );
 
-        $this->transfer->update([
-            'status' => $result->successful() ? 'completed' : 'failed',
-            'completed_at' => now(),
-            'metadata' => [
-                'output' => $result->output(),
-                'exitCode' => $result->exitCode(),
-                'error' => $result->errorOutput(),
-            ],
-        ]);
+        $this->transfer->updateAfterUpload($result);
     }
 }

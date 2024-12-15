@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OperatingSystemType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +22,7 @@ return new class extends Migration
             $table->text('private_key')->nullable();
             $table->text('username')->nullable();
             $table->text('password')->nullable();
-            $table->enum('os', ['Linux','Windows', 'Mac']);
+            $table->enum('os', OperatingSystemType::values());
             $table->timestamps();
         });
     }

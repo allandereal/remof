@@ -2,40 +2,48 @@
 
 namespace App\Models;
 
+use App\Enums\TransferableType;
+use App\Enums\TransferStatus;
 use App\Jobs\CopyFile;
 use App\Jobs\CreateDirectory;
 use App\Jobs\SplitDirectory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
 
 class Transfer extends Model
 {
     protected $guarded = [];
 
-    public function server(): BelongsTo
+    public function fromServer(): BelongsTo
     {
-        return $this->belongsTo(Server::class);
+        return $this->belongsTo(Server::class, 'from_server_id');
     }
 
-    public function transferable(): BelongsTo
+    public function toServer(): BelongsTo
     {
-        return $this->belongsTo(Transferable::class);
+        return $this->belongsTo(Server::class, 'to_server_id');
     }
 
-    public function getChildPath(Transferable $transferable): string
+    public function isDirectory(): bool
     {
-        return $this->path . (str_ends_with($this->path, '/') ? '' : '/') . $transferable->getLastPathPart();
+        return $this->type === TransferableType::DIRECTORY->value || is_dir($this->from_path);
+    }
+
+    public function getChildPath($path): string
+    {
+        return $this->to_path . (str_ends_with($this->to_path, '/') ? '' : '/') . preg_replace("/^.*\/(.*)$/", "$1", $path);
     }
 
     public static function getFolderContents(string $path): array
     {
         $path = escapeshellarg($path);
-        $contents = explode( "\n", Process::run(
-            "find " . $path
-            .' -maxdepth 1 ! -path ' . $path
-        )->output()) ?? [];
+
+        $contents = explode(
+            "\n",
+            Process::run("find " . $path .' -maxdepth 1 ! -path ' . $path)->output()
+        ) ?? [];
 
         return array_filter($contents, fn($item) => $item !== '');
     }
@@ -43,9 +51,7 @@ class Transfer extends Model
     protected static function booted(): void
     {
         static::created(function (Transfer $transfer) {
-            $transfer->load('transferable');
-
-            if ($transfer->transferable->isDirectory()){
+            if ($transfer->isDirectory()){
                 SplitDirectory::dispatch($transfer)->onQueue('splitter');
             } else {
                 CopyFile::dispatch($transfer)->onQueue('file');
@@ -55,22 +61,34 @@ class Transfer extends Model
 
     public function retry(): void
     {
-        if ($this->transferable->isDirectory()){
+        if ($this->isDirectory()){
             CreateDirectory::dispatch($this)->onQueue('directory');
         } else {
             CopyFile::dispatch($this)->onQueue('file');
         }
     }
 
+    public function updateAfterUpload(ProcessResult $processResult): void
+    {
+        $this->update([
+            'status' => $processResult->successful() ? TransferStatus::COMPLETED->value : TransferStatus::FAILED->value,
+            'completed_at' => now(),
+            'metadata' => [
+                'response' => [
+                    'output' => $processResult->output(),
+                    'exitCode' => $processResult->exitCode(),
+                    'error' => $processResult->errorOutput(),
+                ]
+            ],
+        ]);
+    }
+
     public function buildScpCommand(): string
     {
-        $isDirectory = $this->transferable->isDirectory();
-
         $parts = [
             'scp',
-            //...($isDirectory ? ['-r'] : []), //This isn't working on URE external dist
-            escapeshellarg($this->transferable->path),
-            escapeshellarg($this->path ? $this->server->hostname.':'.$this->path : $this->server->hostname)
+            escapeshellarg($this->from_path),
+            escapeshellarg($this->to_path ? $this->server->hostname.':'.$this->to_path : $this->server->hostname)
         ];
 
         return implode(' ', $parts);
@@ -78,10 +96,10 @@ class Transfer extends Model
 
     public function buildMkdirCommand(): string
     {
-        $creationCommand = "\"mkdir -p {$this->path}\"";
+        $creationCommand = "\"mkdir -p {$this->to_path}\"";
 
-        if ($this->server->isWindows()){
-            $dirPath = '\\"'.str_replace('/', "\\\\", ltrim($this->path, '/')).'\\"';
+        if ($this->toServer->isWindows()){
+            $dirPath = '\\"'.str_replace('/', "\\\\", ltrim($this->to_path, '/')).'\\"';
             $creationCommand = '"if not exist '.$dirPath.' mkdir '.$dirPath.'"';
         }
 
@@ -92,5 +110,10 @@ class Transfer extends Model
         ];
 
         return implode(' ', $parts);
+    }
+
+    public static function getHashCommand($path): string
+    {
+        return 'b2sum "'.$path.'" | awk \'{ print $1 }\'';
     }
 }

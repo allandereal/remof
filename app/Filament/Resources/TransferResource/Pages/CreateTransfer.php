@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\TransferResource\Pages;
 
+use App\Enums\OperatingSystemType;
+use App\Enums\TransferableType;
 use App\Filament\Resources\TransferResource;
-use App\Models\Transferable;
-use Filament\Actions;
+use App\Models\Server;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateTransfer extends CreateRecord
@@ -13,10 +14,14 @@ class CreateTransfer extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $transferable = Transferable::find($data['transferable_id']);
+        $toServer = Server::find($data['to_server_id']);
 
-        if ($transferable->isDirectory()){
-            $data['path'] .= (str_ends_with($data['path'], '/') ? '' : '/') . $transferable->getLastPathPart();
+        if ($data['type'] === TransferableType::DIRECTORY->value){
+            $data['to_path'] .= (str_ends_with($data['to_path'], '/') ? '' : '/') . preg_replace("/^.*\/(.*)$/", "$1", $data['from_path']);
+        }
+
+        if ($toServer->os === OperatingSystemType::WINDOWS->value && !str_starts_with($data['to_path'], '/')){
+            $data['to_path'] = '/'.$data['to_path'];
         }
 
         return $data;

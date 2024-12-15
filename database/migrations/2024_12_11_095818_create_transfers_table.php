@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\TransferableType;
+use App\Enums\TransferStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,15 +15,17 @@ return new class extends Migration
     {
         Schema::create('transfers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('transferable_id')
-                ->constrained('transferables')
-                ->cascadeOnDelete();
+            $table->enum('type', TransferableType::values());
+            $table->text('hash')->nullable();
+            $table->unsignedBigInteger('size')->nullable();
+            $table->foreignId('transfer_id')->nullable()->constrained('transfers')->cascadeOnDelete();
             $table->dateTime('started_at')->nullable();
             $table->dateTime('completed_at')->nullable();
-            $table->enum('status', ['pending', 'started', 'failed', 'completed'])
-                ->default('pending');
-            $table->foreignId('server_id')->constrained('servers');
-            $table->string('path', 500)->nullable();
+            $table->enum('status', TransferStatus::values())->default(TransferStatus::PENDING->value);
+            $table->foreignId('from_server_id')->constrained('servers')->cascadeOnDelete();
+            $table->foreignId('to_server_id')->constrained('servers')->cascadeOnDelete();
+            $table->text('from_path')->nullable();
+            $table->text('to_path')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
         });

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\TransferStatus;
 use App\Models\Transfer;
 use App\Models\Transferable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,14 +46,9 @@ class CopyFile implements ShouldQueue
             'status' => 'started',
         ]);
 
-        $this->transfer->load('transferable');
+        //TODO: update the file hash
 
-//        $this->transfer->transferable->update([
-//            'hash' => Process::run(Transferable::getHashCommand(path: $this->transfer->transferable->path))->output()
-//        ]);
-
-        $result = Process::forever()
-            ->run(
+        $result = Process::forever()->run(
                 $this->transfer->buildScpCommand(),
                 function (string $type, string $output) {
                     Log::info('SCPLog: ', [$type, $output]);
@@ -71,14 +67,6 @@ class CopyFile implements ShouldQueue
                 }
             );
 
-        $this->transfer->update([
-            'status' => $result->successful() ? 'completed' : 'failed',
-            'completed_at' => now(),
-            'metadata' => [
-                'output' => $result->output(),
-                'exitCode' => $result->exitCode(),
-                'error' => $result->errorOutput(),
-            ],
-        ]);
+        $this->transfer->updateAfterUpload($result);
     }
 }

@@ -2,18 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\OperatingSystemType;
+use App\Enums\TransferableType;
 use App\Enums\TransferStatus;
 use App\Filament\Resources\TransferResource\Pages;
-use App\Filament\Resources\TransferResource\RelationManagers;
 use App\Models\Transfer;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TransferResource extends Resource
 {
@@ -25,22 +24,24 @@ class TransferResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('transferable_id')
-                    ->relationship('transferable', 'path')
-                    ->searchable()
-                    ->required(),
-                //Forms\Components\DateTimePicker::make('started_at'),
-                //Forms\Components\DateTimePicker::make('completed_at'),
-                Forms\Components\Select::make('status')
-                    ->options(array_combine(TransferStatus::values(), TransferStatus::titles()))
-                    ->default(TransferStatus::PENDING->value)
-                    ->required(),
-                Forms\Components\Select::make('server_id')
-                    ->relationship('server', 'name')
-                    ->required(),
-                Forms\Components\TextInput::make('path'),
-                Forms\Components\Textarea::make('metadata')
+                Forms\Components\Radio::make('type')
+                    ->options(array_combine(TransferableType::values(), TransferableType::titles()))
+                    ->required()
                     ->columnSpanFull(),
+                Forms\Components\Select::make('from_server_id')
+                    ->relationship('fromServer', 'name')
+                    ->label('From Server')
+                    ->required(),
+                Forms\Components\Select::make('to_server_id')
+                    ->relationship('toServer', 'name')
+                    ->label('To Server')
+                    ->required(),
+                Forms\Components\TextInput::make('from_path')
+                    ->label('From Path')
+                    ->required(),
+                Forms\Components\TextInput::make('to_path')
+                    ->label('To Path')
+                    ->required(),
             ]);
     }
 
@@ -48,42 +49,20 @@ class TransferResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('transferable.path')
-                    ->sortable()->limit(80),
-                Tables\Columns\TextColumn::make('transferable.type')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('server.name')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('path')
-                    ->sortable()
-                    ->searchable()
-                    ->limit(80),
-                Tables\Columns\TextColumn::make('started_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('completed_at')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('from_path')->sortable()->limit(80),
+                Tables\Columns\TextColumn::make('to_path')->sortable()->limit(80),
+                Tables\Columns\TextColumn::make('type')->sortable(),
+                Tables\Columns\TextColumn::make('status')->sortable(),
+                Tables\Columns\TextColumn::make('fromServer.name')->sortable(),
+                Tables\Columns\TextColumn::make('toServer.name')->sortable(),
+                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('started_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('completed_at')->dateTime()->sortable(),
+
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'pending' => 'Pending',
-                        'started' => 'Started',
-                        'completed' => 'Completed',
-                        'failed' => 'Failed',
-                    ])
+                    ->options(array_combine(TransferStatus::values(), TransferStatus::titles()))
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
